@@ -7,14 +7,15 @@ import os
 import torch
 import torch.nn as nn
 
-BN_MOMENTUM = 0.1 # momentum parameter for BatchNorm
+BN_MOMENTUM = 0.1  # momentum parameter for BatchNorm
 logger = logging.getLogger(__name__)
+
 
 def conv3x3(in_planes, out_planes, stride=1):
     return nn.Conv2d(
-        in_planes, out_planes, kernel_size=3, stride=stride,
-        padding=1, bias=False
+        in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False
     )
+
 
 class Bottleneck(nn.Module):
     expansion = 4
@@ -23,7 +24,7 @@ class Bottleneck(nn.Module):
         super(Bottleneck, self).__init__()
         self.downsample = downsample
         self.stride = stride
-        self.momentum = BN_MOMENTUM # momentum parameter for BatchNorm
+        self.momentum = BN_MOMENTUM  # momentum parameter for BatchNorm
 
         # use for bottleneck block
         self.conv1 = torch.nn.Conv2d(
@@ -33,7 +34,7 @@ class Bottleneck(nn.Module):
             stride=1,
             bias=False,
         )
-        self.bn1 = torch.nn.BatchNorm2d(planes)
+        self.bn1 = torch.nn.BatchNorm2d(planes, momentum=self.momentum)
         self.conv2 = torch.nn.Conv2d(
             in_channels=planes,
             out_channels=planes,
@@ -41,15 +42,15 @@ class Bottleneck(nn.Module):
             stride=1,
             bias=False,
         )
-        self.bn2 = torch.nn.BatchNorm2d(planes)
+        self.bn2 = torch.nn.BatchNorm2d(planes, momentum=self.momentum)
         self.conv3 = torch.nn.Conv2d(
             in_channels=planes,
-            out_channels=expansion * planes,
+            out_channels=self.expansion * planes,
             kernel_size=1,
             stride=1,
             bias=False,
         )
-        self.bn3 = torch.nn.BatchNorm2d(expansion * planes)
+        self.bn3 = torch.nn.BatchNorm2d(self.expansion * planes, momentum=self.momentum)
         self.relu = torch.nn.ReLU(inplace=True)
 
     def forward(self, x):
@@ -74,17 +75,16 @@ class Bottleneck(nn.Module):
         out = self.relu(out)
         return out
 
+
 class ResNet(nn.Module):
-    #Res-18 BasicBlock,[2, 2, 2, 2]; Res-50 Bottleneck,[3,4,6,3]
-    def __init__(self, block=Bottleneck, num_maps=10, layers=[3,4,6,3]):
+    # Res-18 BasicBlock,[2, 2, 2, 2]; Res-50 Bottleneck,[3,4,6,3]
+    def __init__(self, block=Bottleneck, num_maps=10, layers=[3, 4, 6, 3]):
         self.inplanes = 64
         self.deconv_with_bias = False
 
         super(ResNet, self).__init__()
 
-
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
-                               bias=False)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64, momentum=BN_MOMENTUM)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -94,22 +94,14 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
 
         # use for deconv blocks
-        ####################################
-        ####### ENTER YOUR CODE HERE #######
-        ####################################
-        self.deconv_layers_1 = torch.nn.Sequential(torch.nn.ConvTranspose2d())
-        self.deconv_layers_2 = 
-        self.deconv_layers_3 = 
-        ####################################
-        ####################################
-        ####################################
+        num_kernels = [4]
+        num_filters = [256]
+        self.deconv_layers_1 = self._make_deconv_layer(0, num_filters, num_kernels)
+        self.deconv_layers_2 = self._make_deconv_layer(0, num_filters, num_kernels)
+        self.deconv_layers_3 = self._make_deconv_layer(0, num_filters, num_kernels)
 
         self.final_layer = nn.Conv2d(
-            in_channels=256,
-            out_channels=num_maps,
-            kernel_size=1,
-            stride=1,
-            padding=0
+            in_channels=256, out_channels=num_maps, kernel_size=1, stride=1, padding=0
         )
 
         self._initialize_weights()
@@ -118,8 +110,13 @@ class ResNet(nn.Module):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes * block.expansion,
-                          kernel_size=1, stride=stride, bias=False),
+                nn.Conv2d(
+                    self.inplanes,
+                    planes * block.expansion,
+                    kernel_size=1,
+                    stride=stride,
+                    bias=False,
+                ),
                 nn.BatchNorm2d(planes * block.expansion, momentum=BN_MOMENTUM),
             )
 
@@ -144,12 +141,10 @@ class ResNet(nn.Module):
 
         return deconv_kernel, padding, output_padding
 
-    def _make_deconv_layer(self, i , num_filters, num_kernels):
-
+    def _make_deconv_layer(self, i, num_filters, num_kernels):
         layers = []
-        
-        kernel, padding, output_padding = \
-            self._get_deconv_cfg(num_kernels[i], i)
+
+        kernel, padding, output_padding = self._get_deconv_cfg(num_kernels[i], i)
 
         planes = num_filters[i]
         layers.append(
@@ -160,7 +155,9 @@ class ResNet(nn.Module):
                 stride=2,
                 padding=padding,
                 output_padding=output_padding,
-                bias=self.deconv_with_bias))
+                bias=self.deconv_with_bias,
+            )
+        )
         layers.append(nn.BatchNorm2d(planes, momentum=BN_MOMENTUM))
         layers.append(nn.ReLU(inplace=True))
         self.inplanes = planes
@@ -179,15 +176,9 @@ class ResNet(nn.Module):
         x = self.layer4(x)
 
         # use for deconv blocks
-        ####################################
-        ####### ENTER YOUR CODE HERE #######
-        ####################################
-        x = 
-        x = 
-        x = 
-        ####################################
-        ####################################
-        ####################################
+        x = self.deconv_layers_1(x)
+        x = self.deconv_layers_2(x)
+        x = self.deconv_layers_3(x)
 
         x = self.final_layer(x)
 
@@ -197,7 +188,7 @@ class ResNet(nn.Module):
         for m in self.modules():
             if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
                 n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
+                m.weight.data.normal_(0, math.sqrt(2.0 / n))
                 if m.bias is not None:
                     m.bias.data.zero_()
             elif isinstance(m, nn.BatchNorm2d):
@@ -208,10 +199,11 @@ class ResNet(nn.Module):
                 m.weight.data.normal_(0, 0.01)
                 m.bias.data.zero_()
 
+
 resnet_spec = {
     18: (BasicBlock, [2, 2, 2, 2]),
     34: (BasicBlock, [3, 4, 6, 3]),
     50: (Bottleneck, [3, 4, 6, 3]),
     101: (Bottleneck, [3, 4, 23, 3]),
-    152: (Bottleneck, [3, 8, 36, 3])
+    152: (Bottleneck, [3, 8, 36, 3]),
 }
