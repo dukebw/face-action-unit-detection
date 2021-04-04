@@ -21,7 +21,8 @@ class Bottleneck(nn.Module):
     expansion = 4
 
     def __init__(self, inplanes, planes, stride=1, downsample=None):
-        super(Bottleneck, self).__init__()
+        nn.Module.__init__(self)
+
         self.downsample = downsample
         self.stride = stride
         self.momentum = BN_MOMENTUM  # momentum parameter for BatchNorm
@@ -41,13 +42,14 @@ class Bottleneck(nn.Module):
             kernel_size=3,
             stride=1,
             bias=False,
+            padding=1,
         )
         self.bn2 = torch.nn.BatchNorm2d(planes, momentum=self.momentum)
         self.conv3 = torch.nn.Conv2d(
             in_channels=planes,
             out_channels=self.expansion * planes,
             kernel_size=1,
-            stride=1,
+            stride=stride,
             bias=False,
         )
         self.bn3 = torch.nn.BatchNorm2d(self.expansion * planes, momentum=self.momentum)
@@ -79,10 +81,10 @@ class Bottleneck(nn.Module):
 class ResNet(nn.Module):
     # Res-18 BasicBlock,[2, 2, 2, 2]; Res-50 Bottleneck,[3,4,6,3]
     def __init__(self, block=Bottleneck, num_maps=10, layers=[3, 4, 6, 3]):
+        nn.Module.__init__(self)
+
         self.inplanes = 64
         self.deconv_with_bias = False
-
-        super(ResNet, self).__init__()
 
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64, momentum=BN_MOMENTUM)
@@ -200,10 +202,10 @@ class ResNet(nn.Module):
                 m.bias.data.zero_()
 
 
-resnet_spec = {
-    18: (BasicBlock, [2, 2, 2, 2]),
-    34: (BasicBlock, [3, 4, 6, 3]),
-    50: (Bottleneck, [3, 4, 6, 3]),
-    101: (Bottleneck, [3, 4, 23, 3]),
-    152: (Bottleneck, [3, 8, 36, 3]),
-}
+# resnet_spec = {
+#     18: (BasicBlock, [2, 2, 2, 2]),
+#     34: (BasicBlock, [3, 4, 6, 3]),
+#     50: (Bottleneck, [3, 4, 6, 3]),
+#     101: (Bottleneck, [3, 4, 23, 3]),
+#     152: (Bottleneck, [3, 8, 36, 3]),
+# }
